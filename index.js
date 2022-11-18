@@ -36,42 +36,75 @@ app.get('/api/:siren', (req, res) =>{
             'authorization' : `Bearer ${authorized}`        
         }
     }).then(res => {
-        name = res.data.uniteLegale.periodesUniteLegale[0].denominationUniteLegale
+        name = res.data.uniteLegale.periodesUniteLegale[0].denominationUniteLegale.toLowerCase()
         nic = res.data.uniteLegale.periodesUniteLegale[0].nicSiegeUniteLegale
-        //console.log(res.data.uniteLegale.periodesUniteLegale[0])
-    }).catch(err => {
-        console.log(err)
+    }).catch(error => {
+        if (error.response) {
+            // Request made and server responded
+            res.status(error.response.status)
+                .send(error.response.data)
+        } else if (error.request) {
+        // The request was made but no response was received
+        console.log(error.request)
+        res.send(error.request)
+        } else {
+            // Something happened in setting up the request that triggered an Error
+            console.log('Error', error.message)
+            res.status(400)
+                .send({
+                    "header": {
+                        "statut": 400,
+                        "message": error.message
+                    }
+                })
+        }
     })
     
-    //Deuxieme requete : on veut maintenant récupéré l'adresse, on doit donc passer par la GET request /siret/:siret pour obtenir ces informations
+    //Deuxieme requete : on veut maintenant récupérer l'adresse, on doit donc passer par la GET request /siret/:siret pour obtenir ces informations
     .then(() => {
         siret = siren + nic
         axios.get(`${api.base}/siret/${siret}`, {
             headers : {
-                'authorization' : `Bearer ${authorized}`        
+                'authorization' : `Bearer ${authorized}`
             }
         })
         .then(res => {
             let etablissement = res.data.etablissement.adresseEtablissement
+
+            let codePostal = etablissement.codePostalEtablissement
+            codePostal = codePostal.slice(0, 2) + " " + codePostal.slice(2)
             //adress : numero de voie + type de voie + nom de voie + code postal + nom de commune
-            adress = `${etablissement.numeroVoieEtablissement} ${etablissement.typeVoieEtablissement} ${etablissement.libelleVoieEtablissement} ${etablissement.codePostalEtablissement} ${etablissement.libelleCommuneEtablissement}` 
-            //console.log(res.data.etablissement.adresseEtablissement)
-        }).catch(err => {
-            console.log(err)
+            adress = `${etablissement.numeroVoieEtablissement} ${etablissement.typeVoieEtablissement} ${etablissement.libelleVoieEtablissement} ${codePostal} ${etablissement.libelleCommuneEtablissement}` 
+        }).catch(error => {
+            if (error.response) {
+                // Request made and server responded
+                res.status(error.response.status)
+                    .send(error.response.data)
+            } else if (error.request) {
+            // The request was made but no response was received
+            console.log(error.request)
+            res.send(error.request)
+            } else {
+                // Something happened in setting up the request that triggered an Error
+                console.log('Error', error.message)
+                res.status(400)
+                    .send({
+                        "header": {
+                            "statut": 400,
+                            "message": error.message
+                        }
+                    })
+            }
         })
         
+        //On renvoie les informations récupérés en sortie de requete
         .then(() => {
-                res.status(200)
-            /*.send({
-                'siren' : '853908358',
-                'Address' : '6 RUE DES DAMES 75 017 PARIS 17',  
-                'name' : 'juridifeel'
-            })*/
-            .send({
-                'siren' : siren,
-                'adress' : adress,
-                'name' : name
-        })
+            res.status(200)
+                .send({
+                    'siren' : siren,
+                    'adress' : adress,
+                    'name' : name
+                })
         })
     })
 })
@@ -83,18 +116,18 @@ app.listen(PORT, () =>{
 
 
 /**
- * comment faire pour recup les informations :
+ * comment faire pour recuperer les informations :
  * 1/ on donne en argument le siren de l'entreprise.
  * 
  * 2/ on appel l'api : https://api.insee.fr/entreprises/sirene/V3/siren/{siren}
  *      valeur du siren est 853908358.
  * 
- * 3/ on récupère les valeur suivante de l'appel: 
+ * 3/ on récupère les valeurs suivantes de l'appel: 
  *      data.uniteLegale.siren
  *      data.uniteLegale.periodesUniteLegale[0].denominationUniteLegale -> nom (le nom doit etre en minuscule -> regex)
  *      data.uniteLegale.periodesUniteLegale[0].nicSiegeUniteLegale
  * 
- * 4/ on colle siren et nic ensemble pour recuperé le siret:
+ * 4/ on colle siren et nic ensemble pour recuperer le siret:
  *      siret = data.uniteLegale.siren + data.uniteLegale.periodesUniteLegale[0].nicSiegeUniteLegale
  * 
  * 5/ appel d'api : https://api.insee.fr/entreprises/sirene/V3/siret/{siret}
